@@ -12,7 +12,7 @@ NC='\033[0m'
 
 INSTALL_DIR="/etc/SkyNeT"
 DEFAULT_PORT=8383
-GITHUB_REPO="SkyNeT2025/SkyNeT"
+GITHUB_REPO="HE3ndrixx/SkyNeT"
 GITHUB_API="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
 
 echo -e "${CYAN}===== 🚀 SkyNeT Installer =====${NC}"
