@@ -1,0 +1,64 @@
+name: SkyNeT Auto Build and Release
+
+on:
+  push:
+    branches:
+      - "main"  # 监听 main 分支的普通 push
+  workflow_dispatch: # 允许手动点击触发
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 必须开启权限才能创建/覆盖 Release
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- 1. 自动修复代码中的旧路径 ---
+      - name: Fix Import Paths
+        run: |
+          echo "Replacing old module paths..."
+          # 自动将所有文件中的 p-box/backend 替换为 SkyNeT/backend
+          grep -rl "p-box/backend" backend/ | xargs sed -i 's|p-box/backend|SkyNeT/backend|g' || echo "No old paths found."
+
+      # --- 2. 环境准备 ---
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      # --- 3. 编译后端 ---
+      - name: Build Backend
+        run: |
+          cd backend
+          go mod tidy
+          BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          # 编译当前目录 (.)
+          GOOS=linux GOARCH=amd64 go build \
+            -ldflags="-s -w -X 'main.BuildTime=${BUILD_TIME}'" \
+            -o ../SkyNeT-linux-amd64 .
+          cd ..
+
+      # --- 4. 发布到 Release (覆盖 latest) ---
+      - name: Create or Update Release
+        uses: [softprops/action-gh-release](https://github.com)@v2
+        with:
+          # 关键：强制指定 tag_name 为 latest，绕过 "requires a tag" 限制
+          tag_name: latest
+          name: "SkyNeT 持续构建 (Main)"
+          body: |
+            ## 🚀 SkyNeT 自动构建发布
+            - **分支**: `main`
+            - **构建时间**: $(date)
+            - **说明**: 此版本为自动构建的最新预览版，每次推送到 main 分支都会自动更新。
+          files: |
+            SkyNeT-linux-amd64
+          draft: false
+          prerelease: true  # 建议标记为预发布，作为开发版本
+          make_latest: true # 确保它是页面上显示的最新版
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
