@@ -9,18 +9,18 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
-	"p-box/backend/config"
-	"p-box/backend/middleware"
-	"p-box/backend/modules/auth"
-	"p-box/backend/modules/core"
-	"p-box/backend/modules/node"
-	"p-box/backend/modules/proxy"
-	"p-box/backend/modules/ruleset"
-	"p-box/backend/modules/speedtest"
-	"p-box/backend/modules/subscription"
-	"p-box/backend/modules/system"
-	"p-box/backend/modules/wireguard"
-	"p-box/backend/websocket"
+	"SkyNeT/backend/config"
+	"SkyNeT/backend/middleware"
+	"SkyNeT/backend/modules/auth"
+	"SkyNeT/backend/modules/core"
+	"SkyNeT/backend/modules/node"
+	"SkyNeT/backend/modules/proxy"
+	"SkyNeT/backend/modules/ruleset"
+	"SkyNeT/backend/modules/speedtest"
+	"SkyNeT/backend/modules/subscription"
+	"SkyNeT/backend/modules/system"
+	"SkyNeT/backend/modules/wireguard"
+	"SkyNeT/backend/websocket"
 )
 
 // 版本信息 (由 main.go 设置)
@@ -89,12 +89,12 @@ func (s *Server) setupRoutes() {
 	s.router.StaticFile("/", "./frontend/index.html")
 	s.router.StaticFile("/favicon.ico", "./frontend/favicon.ico")
 	// PNG 图标文件
-	s.router.StaticFile("/p-box-logo.png", "./frontend/p-box-logo.png")
+	s.router.StaticFile("/SkyNeT-logo.png", "./frontend/SkyNeT-logo.png")
 	s.router.StaticFile("/favicon-16.png", "./frontend/favicon-16.png")
 	s.router.StaticFile("/favicon-32.png", "./frontend/favicon-32.png")
 	s.router.StaticFile("/apple-touch-icon.png", "./frontend/apple-touch-icon.png")
 	// SVG 文件（兼容）
-	s.router.StaticFile("/p-box-logo.svg", "./frontend/p-box-logo.svg")
+	s.router.StaticFile("/SkyNeT-logo.svg", "./frontend/SkyNeT-logo.svg")
 	s.router.StaticFile("/favicon.svg", "./frontend/favicon.svg")
 
 	// 健康检查
@@ -236,7 +236,7 @@ func (s *Server) systemInfo(c *gin.Context) {
 		"code":    0,
 		"message": "success",
 		"data": gin.H{
-			"name":      "P-BOX",
+			"name":      "SkyNeT",
 			"version":   Version,
 			"buildTime": BuildTime,
 		},
