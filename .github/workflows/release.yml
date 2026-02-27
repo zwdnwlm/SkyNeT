@@ -3,19 +3,20 @@ name: SkyNeT Build and Release
 on:
   push:
     tags:
-      - 'v*' 
-  workflow_dispatch: 
+      - 'v*' # 当推送标签如 v2.0.3 时触发
+  workflow_dispatch: # 允许手动点击触发
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # 必须开启，否则无法上传到 Release
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # --- 1. 环境准备 ---
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -23,28 +24,69 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # --- 2. 编译后端 (重点修正) ---
       - name: Build Backend
         run: |
+          # 进入后端目录
           cd backend
-          # 确保依赖下载正确
+          
+          # 确保依赖同步（解决 package not in std 报错的关键）
           go mod tidy
-          # 编译当前目录 (.)
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../SkyNeT-linux-amd64 .
+          
+          # 获取当前时间（注入到 main.go 的 BuildTime 变量）
+          BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
+          # 交叉编译 Linux AMD64 版本
+          # 使用 -ldflags 注入 BuildTime 并压缩体积 (-s -w)
+          GOOS=linux GOARCH=amd64 go build \
+            -ldflags="-s -w -X 'main.BuildTime=${BUILD_TIME}'" \
+            -o ../SkyNeT-linux-amd64 .
+          
           cd ..
 
+      # --- 3. 编译前端 (如有 build 脚本) ---
       - name: Build Frontend
         run: |
           cd frontend
           npm install
-          npm run build --if-present
+          # 如果你的前端有构建脚本，请取消下面一行的注释
+          # npm run build --if-present
           cd ..
 
-      - name: Create Release
+      # --- 4. 目录初始化验证 ---
+      - name: Prepare Package
+        run: |
+          # 创建必要的运行目录（确保打包时逻辑完整）
+          mkdir -p data/configs data/cores data/logs
+          # 给二进制文件执行权限
+          chmod +x SkyNeT-linux-amd64
+
+      # --- 5. 自动发布到 Release ---
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: SkyNeT-linux-amd64
-          name: Release ${{ github.ref_name }}
-          body: "SkyNeT Backend (Module: p-box/backend) 自动构建"
+          # 指定要上传的文件
+          files: |
+            SkyNeT-linux-amd64
+          # 发布说明
+          name: SkyNeT ${{ github.ref_name }}
+          body: |
+            ## 🚀 SkyNeT 自动构建成功
+            - **版本**: ${{ github.ref_name }}
+            - **后端模块**: `SkyNeT/backend`
+            - **构建环境**: Ubuntu Latest / Go 1.21
+            
+            使用方法：
+            `chmod +x SkyNeT-linux-amd64 && ./SkyNeT-linux-amd64`
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
