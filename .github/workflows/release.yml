@@ -48,22 +48,28 @@ jobs:
           cd backend
           go mod tidy
           BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          # 编译为 SkyNeT 二进制文件
           GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X 'main.BuildTime=${BUILD_TIME}'" -o ../SkyNeT .
           cd ..
+          
+          # 确保数据目录存在
           mkdir -p data/configs data/cores data/logs
-          tar -czvf SkyNeT-linux-amd64.tar.gz SkyNeT data/ start-all.sh --warning=no-unknown-keyword
+          
+          # 打包：仅包含二进制文件和 data 目录
+          tar -czvf SkyNeT-linux-amd64.tar.gz SkyNeT data/ --warning=no-unknown-keyword
 
       # --- 5. 编译 & 打包 (Windows AMD64) ---
       - name: Build and Archive Windows
         run: |
           cd backend
-          # 交叉编译 Windows .exe 文件
+          # 交叉编译 Windows .exe
           GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o ../SkyNeT.exe .
           cd ..
-          # 使用 zip 打包 Windows 版本
-          zip -r SkyNeT-windows-amd64.zip SkyNeT.exe data/ start-all.sh
+          
+          # 使用 zip 打包：仅包含 exe 和 data 目录
+          zip -r SkyNeT-windows-amd64.zip SkyNeT.exe data/
 
-      # --- 6. 统一发布到 Release ---
+      # --- 6. 发布到 Release (latest) ---
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
@@ -74,9 +80,9 @@ jobs:
             - **分支**: `main`
             - **构建时间**: $(date)
             
-            ### 📦 下载指南
-            - **Linux**: 下载 `.tar.gz` 格式。
-            - **Windows**: 下载 `.zip` 格式，直接运行 `SkyNeT.exe`。
+            ### 📦 文件说明
+            - **Linux**: `SkyNeT-linux-amd64.tar.gz` (包含二进制程序及 data 目录)
+            - **Windows**: `SkyNeT-windows-amd64.zip` (包含 SkyNeT.exe 及 data 目录)
           files: |
             SkyNeT-linux-amd64.tar.gz
             SkyNeT-windows-amd64.zip
