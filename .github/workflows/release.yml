@@ -16,11 +16,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # --- 1. 自动修复代码中的旧路径 ---
       - name: Fix Import Paths
         run: |
           echo "Replacing old module paths..."
           grep -rl "p-box/backend" backend/ | xargs sed -i 's|p-box/backend|SkyNeT/backend|g' || echo "No old paths found."
 
+      # --- 2. 环境准备 ---
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -28,24 +30,29 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
 
+      # --- 3. 编译后端 ---
       - name: Build Backend
         run: |
           cd backend
           go mod tidy
           BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          # 编译二进制文件
           GOOS=linux GOARCH=amd64 go build \
             -ldflags="-s -w -X 'main.BuildTime=${BUILD_TIME}'" \
-            -o ../SkyNeT-linux-amd64 .
+            -o ../SkyNeT .
           cd ..
 
-      - name: Build Frontend
+      # --- 4. 打包为 tar.gz ---
+      - name: Archive Binary
         run: |
-          cd frontend
-          npm install
-          npm run build --if-present
-          cd ..
+          # 创建必要的运行目录（可选，包含在压缩包内）
+          mkdir -p data/configs data/cores data/logs
+          # 打包二进制文件和必要的空目录
+          tar -czvf SkyNeT-linux-amd64.tar.gz SkyNeT data/
+          # 验证压缩包（防止出现你最初提到的元数据警告，使用标准 tar）
+          tar -tvf SkyNeT-linux-amd64.tar.gz
 
-      # --- 修正后的发布步骤 ---
+      # --- 5. 发布到 Release (覆盖 latest) ---
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
@@ -55,9 +62,9 @@ jobs:
             ## 🚀 SkyNeT 自动构建发布
             - **分支**: `main`
             - **说明**: 此版本为自动构建的最新预览版。
-            - **平台**: Linux AMD64
+            - **文件内容**: 包含可执行文件 `SkyNeT` 及运行所需目录。
           files: |
-            SkyNeT-linux-amd64
+            SkyNeT-linux-amd64.tar.gz
           draft: false
           prerelease: true
           make_latest: true
