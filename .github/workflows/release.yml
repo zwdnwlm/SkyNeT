@@ -1,4 +1,4 @@
-name: SkyNeT Auto Build and Release
+name: SkyNeT Multi-Platform Release
 
 on:
   push:
@@ -16,10 +16,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- 1. 自动修复代码中的旧路径 ---
+      # --- 1. 路径自动修复 ---
       - name: Fix Import Paths
         run: |
-          echo "Replacing old module paths..."
           grep -rl "p-box/backend" backend/ | xargs sed -i 's|p-box/backend|SkyNeT/backend|g' || echo "No old paths found."
 
       # --- 2. 环境准备 ---
@@ -30,41 +29,57 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
 
-      # --- 3. 编译后端 ---
-      - name: Build Backend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # --- 3. 编译前端 ---
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build --if-present
+          cd ..
+
+      # --- 4. 编译 & 打包 (Linux AMD64) ---
+      - name: Build and Archive Linux
         run: |
           cd backend
           go mod tidy
           BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          # 编译二进制文件
-          GOOS=linux GOARCH=amd64 go build \
-            -ldflags="-s -w -X 'main.BuildTime=${BUILD_TIME}'" \
-            -o ../SkyNeT .
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X 'main.BuildTime=${BUILD_TIME}'" -o ../SkyNeT .
           cd ..
-
-      # --- 4. 打包为 tar.gz ---
-      - name: Archive Binary
-        run: |
-          # 创建必要的运行目录（可选，包含在压缩包内）
           mkdir -p data/configs data/cores data/logs
-          # 打包二进制文件和必要的空目录
-          tar -czvf SkyNeT-linux-amd64.tar.gz SkyNeT data/
-          # 验证压缩包（防止出现你最初提到的元数据警告，使用标准 tar）
-          tar -tvf SkyNeT-linux-amd64.tar.gz
+          tar -czvf SkyNeT-linux-amd64.tar.gz SkyNeT data/ start-all.sh --warning=no-unknown-keyword
 
-      # --- 5. 发布到 Release (覆盖 latest) ---
+      # --- 5. 编译 & 打包 (Windows AMD64) ---
+      - name: Build and Archive Windows
+        run: |
+          cd backend
+          # 交叉编译 Windows .exe 文件
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o ../SkyNeT.exe .
+          cd ..
+          # 使用 zip 打包 Windows 版本
+          zip -r SkyNeT-windows-amd64.zip SkyNeT.exe data/ start-all.sh
+
+      # --- 6. 统一发布到 Release ---
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: "SkyNeT 持续构建 (Main)"
           body: |
-            ## 🚀 SkyNeT 自动构建发布
+            ## 🚀 SkyNeT 跨平台版本发布
             - **分支**: `main`
-            - **说明**: 此版本为自动构建的最新预览版。
-            - **文件内容**: 包含可执行文件 `SkyNeT` 及运行所需目录。
+            - **构建时间**: $(date)
+            
+            ### 📦 下载指南
+            - **Linux**: 下载 `.tar.gz` 格式。
+            - **Windows**: 下载 `.zip` 格式，直接运行 `SkyNeT.exe`。
           files: |
             SkyNeT-linux-amd64.tar.gz
+            SkyNeT-windows-amd64.zip
           draft: false
           prerelease: true
           make_latest: true
