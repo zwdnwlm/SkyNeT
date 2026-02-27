@@ -1,4 +1,4 @@
-module p-box/backend
+module SkyNeT/backend
 
 go 1.21
 
